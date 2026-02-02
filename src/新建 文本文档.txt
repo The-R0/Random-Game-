@@ -1,0 +1,955 @@
+import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import { Gamepad2, Clock, Trophy, RefreshCw, ExternalLink, X, Sparkles, Filter, Search, ChevronUp, Heart, Hash, Ban, Trash2, Check, Slash } from 'lucide-react';
+
+// 🎮 游戏数据源 (直接包含在 App.jsx 中)
+const GAMES_DATA = [
+  // --- Top 20 (包含完整 SteamID 和时长) ---
+  { id: 1, name_zh: "《巫师 3：狂猎》", name_en: "The Witcher 3: Wild Hunt", steamAppId: 292030, genre: "核心RPG", playtime: 51, desc: "“昆特牌才是本体，救世只是顺便。”" },
+  { id: 2, name_zh: "《艾尔登法环》", name_en: "Elden Ring", steamAppId: 1245620, genre: "核心RPG", playtime: 60, desc: "“探索的乐趣和受苦的痛苦达到了完美的平衡。”" },
+  { id: 3, name_zh: "《赛博朋克 2077》", name_en: "Cyberpunk 2077", steamAppId: 1091500, genre: "核心RPG", playtime: 26, desc: "“夜之城的灯光，照亮了我孤独又精彩的义体人生。”" },
+  { id: 4, name_zh: "《怪物猎人：世界》", name_en: "Monster Hunter: World", steamAppId: 582010, genre: "动作/狩猎", playtime: 46, desc: "“我只是一个为狩猎而生的‘社畜’。”" },
+  { id: 5, name_zh: "《黑暗之魂 III》", name_en: "Dark Souls III", steamAppId: 374320, genre: "核心RPG", playtime: 32, desc: "“灰烬，你值得拥有宫崎英高的善意。”" },
+  { id: 6, name_zh: "《上古卷轴 V：天际》", name_en: "Skyrim", steamAppId: 489830, genre: "核心RPG", playtime: 34, desc: "“我永远喜欢老滚，直到MOD装满了我的硬盘。”" },
+  { id: 7, name_zh: "《辐射 4》", name_en: "Fallout 4", steamAppId: 377160, genre: "核心RPG", playtime: 27, desc: "“拯救世界太累了，还是安心在废土捡垃圾盖房子吧。”" },
+  { id: 8, name_zh: "《仁王 2》", name_en: "Nioh 2", steamAppId: 1325200, genre: "动作/RPG", playtime: 44, desc: "“妖怪和忍者轮番登场，肝帝和手残的混合双打。”" },
+  { id: 9, name_zh: "《龙之信条：黑暗觉者》", name_en: "Dragon's Dogma", steamAppId: 367500, genre: "核心RPG", playtime: 37, desc: "“没有比被巨龙抓走更刺激的打工经历了。”" },
+  { id: 10, name_zh: "《尼尔：机械纪元》", name_en: "NieR: Automata", steamAppId: 524220, genre: "动作/RPG", playtime: 21, desc: "“为2B小姐姐而来，为哲学思考和多周目设计而沉沦。”" },
+  { id: 11, name_zh: "《神界：原罪 2》", name_en: "Divinity: Original Sin 2", steamAppId: 435150, genre: "CRPG", playtime: 60, desc: "“你永远不知道你的队友会做出多出格的骚操作。”" },
+  { id: 12, name_zh: "《博德之门 3》", name_en: "Baldur's Gate 3", steamAppId: 1086940, genre: "CRPG", playtime: 72, desc: "“真正的跑团模拟器，骰子女神决定我的命运。”" },
+  { id: 13, name_zh: "《极乐迪斯科》", name_en: "Disco Elysium", steamAppId: 632470, genre: "CRPG/叙事", playtime: 22, desc: "“一场关于精神分裂、失败主义和哲学思辨的伟大辩论。”" },
+  { id: 14, name_zh: "《异域镇魂曲》", name_en: "Planescape: Torment", steamAppId: 466300, genre: "CRPG", playtime: 30, desc: "“我曾想知道，是什么能够改变一个人的本质？答案在剧本里。”" },
+  { id: 15, name_zh: "《永恒之柱》", name_en: "Pillars of Eternity", steamAppId: 291650, genre: "CRPG", playtime: 35, desc: "“黑曜石再次证明，文字和剧情才是CRPG的灵魂。”" },
+  { id: 16, name_zh: "《质量效应：传奇版》", name_en: "Mass Effect LE", steamAppId: 1328670, genre: "核心RPG", playtime: 60, desc: "“薛帕德指挥官是我的英雄，这段太空史诗值得铭记。”" },
+  { id: 17, name_zh: "《王权的陨落》", name_en: "Thronebreaker", steamAppId: 973760, genre: "RPG/卡牌", playtime: 30, desc: "“买了一个卡牌游戏，结果送了一个顶级的RPG。”" },
+  { id: 18, name_zh: "《辐射：新维加斯》", name_en: "Fallout: New Vegas", steamAppId: 22380, genre: "核心RPG", playtime: 27, desc: "“老炮儿辐射迷的最爱，一个由选择和后果编织的西部废土。”" },
+  { id: 19, name_zh: "《废土 3》", name_en: "Wasteland 3", steamAppId: 719040, genre: "CRPG", playtime: 35, desc: "“在冰天雪地的科罗拉多，和队友一起拯救美国。”" },
+  { id: 20, name_zh: "《龙腾世纪：起源》", name_en: "Dragon Age: Origins", steamAppId: 17450, genre: "核心RPG", playtime: 40, desc: "“每一个艰难的抉择，都让我觉得我真的在领导一场拯救世界的战争。”" },
+  
+  // --- 射击/动作 ---
+  { id: 21, name_zh: "《DOOM 永恒》", name_en: "DOOM Eternal", steamAppId: 782330, genre: "射击/FPS", playtime: 14, desc: "“不是射击，是金属乐节奏下的恶魔肢解模拟。”" },
+  { id: 22, name_zh: "《泰坦陨落 2》", name_en: "Titanfall 2", steamAppId: 1237970, genre: "射击/FPS", playtime: 6, desc: "“最好的单人FPS战役之一，BT，永远滴神！”" },
+  { id: 23, name_zh: "《光环：士官长合集》", name_en: "Halo: MCC", steamAppId: 976730, genre: "射击/动作", playtime: 40, desc: "“重温科幻FPS的黄金时代，史诗般的回忆。”" },
+  { id: 24, name_zh: "《荒野大镖客：救赎 2》", name_en: "Red Dead Redemption 2", steamAppId: 1174180, genre: "射击/动作", playtime: 50, desc: "“亚瑟的救赎之路，是西部题材电影化的最高成就。”" },
+  { id: 25, name_zh: "《生化危机 4 重制版》", name_en: "RE 4 Remake", steamAppId: 2050650, genre: "射击/动作", playtime: 16, desc: "“里昂，你永远可以相信你的过肩视角和那把喷子。”" },
+  { id: 26, name_zh: "《死亡空间 重制版》", name_en: "Dead Space Remake", steamAppId: 1693980, genre: "射击/动作", playtime: 12, desc: "“请务必戴耳机！恐怖感和肢解系统让我身心俱疲。”" },
+  { id: 27, name_zh: "《漫威蜘蛛侠：重制版》", name_en: "Marvel's Spider-Man", steamAppId: 1817070, genre: "射击/动作", playtime: 17, desc: "“在纽约摆荡的快感，治愈了我所有的恐高症。”" },
+  { id: 28, name_zh: "《战神 (2018)》", name_en: "God of War", steamAppId: 1593500, genre: "射击/动作", playtime: 20, desc: "“奎托斯：我教儿子，我打神，我砍树。”" },
+  { id: 29, name_zh: "《神秘海域：盗贼遗产合集》", name_en: "Uncharted", steamAppId: 1659420, genre: "射击/动作", playtime: 20, desc: "“玩的是游戏，看的是好莱坞大片。”" },
+  { id: 30, name_zh: "《掠食》", name_en: "Prey 2017", steamAppId: 480490, genre: "射击/动作", playtime: 16, desc: "“咖啡杯到底是不是异魔？我的被害妄想症发作了。”" },
+  { id: 31, name_zh: "《耻辱 2》", name_en: "Dishonored 2", steamAppId: 403640, genre: "射击/动作", playtime: 15, desc: "“玩法自由度的天花板，杀与不杀都是一种艺术。”" },
+  { id: 32, name_zh: "《杀出重围：人类分裂》", name_en: "Deus Ex: MD", steamAppId: 337000, genre: "射击/动作", playtime: 15, desc: "“Adam Jensen的眼睛是冷酷的，但我的心是自由的。”" },
+  { id: 33, name_zh: "《杀手 3》", name_en: "Hitman 3", steamAppId: 1659040, genre: "射击/动作", playtime: 10, desc: "“47号：我不是来杀人的，我是来扮演一个好厨师的。”" },
+  { id: 34, name_zh: "《合金装备 V：幻痛》", name_en: "MGS V", steamAppId: 287700, genre: "射击/动作", playtime: 45, desc: "“小岛的潜行艺术，每一次Fulton回收都是一次欢乐的绑架。”" },
+  { id: 35, name_zh: "《生化奇兵：无限》", name_en: "BioShock Infinite", steamAppId: 8870, genre: "射击/动作", playtime: 12, desc: "“美丽的空中城市，凄美的双线故事，震撼的结局。”" },
+  { id: 36, name_zh: "《细胞分裂：黑名单》", name_en: "Splinter Cell: Blacklist", steamAppId: 235600, genre: "射击/动作", playtime: 15, desc: "“当山姆·费雪再次穿上三眼夜视仪，我就知道该潜入了。”" },
+  { id: 37, name_zh: "《Thief 模拟器》", name_en: "Thief Simulator", steamAppId: 704850, genre: "射击/动作", playtime: 15, desc: "“黑暗中的艺术，一个真正的盗贼模拟器。”" },
+  { id: 38, name_zh: "《幽灵行动：荒野》", name_en: "Ghost Recon: Wildlands", steamAppId: 460930, genre: "射击/动作", playtime: 25, desc: "“在玻利维亚的大地图上，以一当百。”" },
+  { id: 39, name_zh: "《看门狗 2》", name_en: "Watch Dogs 2", steamAppId: 447040, genre: "射击/动作", playtime: 20, desc: "“做一个酷酷的黑客，用手机统治旧金山。”" },
+  { id: 40, name_zh: "《潜行者：切尔诺贝利的阴影》", name_en: "S.T.A.L.K.E.R.", steamAppId: 4500, genre: "射击/动作", playtime: 15, desc: "“废土和毛子的浪漫，生存的极致。”" },
+  
+  // --- 独立/叙事 ---
+  { id: 41, name_zh: "《传送门 2》", name_en: "Portal 2", steamAppId: 620, genre: "独立/叙事", playtime: 8, desc: "“GLaDOS的毒舌和精妙的物理谜题，我愿称之为神。”" },
+  { id: 42, name_zh: "《史丹利的寓言》", name_en: "The Stanley Parable", steamAppId: 221910, genre: "独立/叙事", playtime: 4, desc: "“一个关于自由意志、服从和旁白的哲学实验。”" },
+  { id: 43, name_zh: "《艾迪芬奇的记忆》", name_en: "Edith Finch", steamAppId: 501300, genre: "独立/叙事", playtime: 2, desc: "“这不是游戏，这是关于死亡和家庭的十几个梦境。”" },
+  { id: 44, name_zh: "《星际拓荒》", name_en: "Outer Wilds", steamAppId: 753640, genre: "独立/叙事", playtime: 16, desc: "“22分钟的宇宙循环，一个你只能玩一次的宇宙之谜。”" },
+  { id: 45, name_zh: "《奥伯拉丁的回归》", name_en: "Obra Dinn", steamAppId: 653530, genre: "独立/叙事", playtime: 10, desc: "“靠一张旧船员表和一具具骸骨，解开一艘船的死亡之谜。”" },
+  { id: 46, name_zh: "《Baba Is You》", name_en: "Baba Is You", steamAppId: 736260, genre: "独立/叙事", playtime: 10, desc: "“当我改变了规则，我就改变了世界，我的脑子也炸了。”" },
+  { id: 47, name_zh: "《请出示证件》", name_en: "Papers, Please", steamAppId: 239030, genre: "独立/叙事", playtime: 5, desc: "“为了家庭，我必须成为阿什托兹卡的冷酷之眼。”" },
+  { id: 48, name_zh: "《地狱之刃：塞娜的献祭》", name_en: "Hellblade", steamAppId: 414340, genre: "独立/叙事", playtime: 8, desc: "“请务必戴耳机！感受精神病患者的内心战场。”" },
+  { id: 49, name_zh: "《Inside》", name_en: "Inside", steamAppId: 304430, genre: "独立/叙事", playtime: 4, desc: "“无言的压抑、精致的解谜、震撼的结局。”" },
+  { id: 50, name_zh: "《去月球》", name_en: "To the Moon", steamAppId: 206440, genre: "独立/叙事", playtime: 4, desc: "“玩到最后，我哭得像个孩子，为了一个简单的爱情故事。”" },
+  { id: 51, name_zh: "《空洞骑士》", name_en: "Hollow Knight", steamAppId: 367520, genre: "独立/叙事", playtime: 27, desc: "“小骑士，大世界，手残的我被虐得心甘情愿。”" },
+  { id: 52, name_zh: "《哈迪斯》", name_en: "Hades", steamAppId: 1145360, genre: "独立/叙事", playtime: 22, desc: "“为听主角和冥界众神的吵架而不断重生。”" },
+  { id: 53, name_zh: "《死亡细胞》", name_en: "Dead Cells", steamAppId: 588650, genre: "独立/叙事", playtime: 13, desc: "“手残地狱，但快感十足，每一次死亡都是新的开始。”" },
+  { id: 54, name_zh: "《杀戮尖塔》", name_en: "Slay the Spire", steamAppId: 646570, genre: "独立/叙事", playtime: 15, desc: "“玩着玩着，我发现自己已经戒不掉这张卡了。”" },
+  { id: 55, name_zh: "《雨中冒险 2》", name_en: "Risk of Rain 2", steamAppId: 632360, genre: "独立/叙事", playtime: 15, desc: "“从割草到被割，一场令人肾上腺素飙升的打工之旅。”" },
+  { id: 56, name_zh: "《蔚蓝》", name_en: "Celeste", steamAppId: 504230, genre: "独立/叙事", playtime: 10, desc: "“爬山的勇气，治愈了我生活中的焦虑。”" },
+  { id: 57, name_zh: "《暗黑地牢》", name_en: "Darkest Dungeon", steamAppId: 262060, genre: "独立/叙事", playtime: 50, desc: "“压力才是最大的敌人，你的英雄疯了。”" },
+  { id: 58, name_zh: "《节奏地牢》", name_en: "Crypt of the NecroDancer", steamAppId: 247080, genre: "独立/叙事", playtime: 8, desc: "“跟着音乐的节拍走，否则你就会死。”" },
+  { id: 59, name_zh: "《蔑视》", name_en: "Scorn", steamAppId: 698670, genre: "独立/叙事", playtime: 6, desc: "“一款让你在血肉机械中，感受艺术与生理不适的作品。”" },
+  { id: 60, name_zh: "《挺进地牢》", name_en: "Enter the Gungeon", steamAppId: 311690, genre: "独立/叙事", playtime: 20, desc: "“为了这把枪，我愿意在地牢里耗费我的所有时间。”" },
+  
+  // --- 模拟/策略 ---
+  { id: 61, name_zh: "《Factorio》", name_en: "Factorio", steamAppId: 427520, genre: "模拟/策略", playtime: 45, desc: "“异星工厂，献给所有强迫症和自动化灵魂。”" },
+  { id: 62, name_zh: "《环世界》", name_en: "RimWorld", steamAppId: 294100, genre: "模拟/策略", playtime: 60, desc: "“一个让你合法进行器官交易和人肉烹饪的模拟器。”" },
+  { id: 63, name_zh: "《缺氧》", name_en: "Oxygen Not Included", steamAppId: 457140, genre: "模拟/策略", playtime: 50, desc: "“我的小人不是渴死，就是被自己的污水淹死。”" },
+  { id: 64, name_zh: "《戴森球计划》", name_en: "Dyson Sphere Program", steamAppId: 1366540, genre: "模拟/策略", playtime: 60, desc: "“中国科幻的浪漫，为了一个球，搭上无数个夜晚。”" },
+  { id: 65, name_zh: "《城市：天际线》", name_en: "Cities: Skylines", steamAppId: 255710, genre: "模拟/策略", playtime: 40, desc: "“我建了个完美的城市，然后被堵车毁了。”" },
+  { id: 66, name_zh: "《坎巴拉太空计划》", name_en: "Kerbal Space Program", steamAppId: 220200, genre: "模拟/策略", playtime: 50, desc: "“失败是成功之母，爆炸是乐趣之源。”" },
+  { id: 67, name_zh: "《动物园之星》", name_en: "Planet Zoo", steamAppId: 703080, genre: "模拟/策略", playtime: 40, desc: "“你不是在建动物园，你是在和游客与动物的行为学作斗争。”" },
+  { id: 68, name_zh: "《星露谷物语》", name_en: "Stardew Valley", steamAppId: 413150, genre: "模拟/策略", playtime: 50, desc: "“我只是想种种地，结果一不小心就和村民结婚了。”" },
+  { id: 69, name_zh: "《潜水员戴夫》", name_en: "Dave the Diver", steamAppId: 1868140, genre: "模拟/策略", playtime: 25, desc: "“白天捕鱼，晚上经营寿司店，人生赢家。”" },
+  { id: 70, name_zh: "《双点医院》", name_en: "Two Point Hospital", steamAppId: 535930, genre: "模拟/策略", playtime: 30, desc: "“治病救人？不，是治愈病人搞笑的症状。”" },
+  { id: 71, name_zh: "《文明 VI》", name_en: "Civilization VI", steamAppId: 289070, genre: "模拟/策略", playtime: 60, desc: "“再来一个回合，然后天亮了。”" },
+  { id: 72, name_zh: "《幽浮 2》", name_en: "XCOM 2", steamAppId: 268500, genre: "模拟/策略", playtime: 35, desc: "“99%的命中率，打出Miss。这就是XCOM。”" },
+  { id: 73, name_zh: "《群星》", name_en: "Stellaris", steamAppId: 281990, genre: "模拟/策略", playtime: 60, desc: "“太空大战略，一不小心就引发了银河大战。”" },
+  { id: 74, name_zh: "《欧陆风云 4》", name_en: "Europa Universalis IV", steamAppId: 236850, genre: "模拟/策略", playtime: 100, desc: "“一个让你在地图上涂色，然后感觉自己掌握了历史的游戏。”" },
+  { id: 75, name_zh: "《钢铁雄心 4》", name_en: "Hearts of Iron IV", steamAppId: 394360, genre: "模拟/策略", playtime: 100, desc: "“二战模拟器，只要我想，斐济也能征服世界。”" },
+  { id: 76, name_zh: "《英雄连 2》", name_en: "Company of Heroes 2", steamAppId: 231430, genre: "模拟/策略", playtime: 20, desc: "“寒冷的东线战场，每一场战斗都是一场史诗。”" },
+  { id: 77, name_zh: "《冰汽时代》", name_en: "Frostpunk", steamAppId: 323190, genre: "模拟/策略", playtime: 15, desc: "“在极端寒冷下，做出艰难的道德抉择。”" },
+  { id: 78, name_zh: "《影子战术：将军之刃》", name_en: "Shadow Tactics", steamAppId: 418240, genre: "模拟/策略", playtime: 25, desc: "“致敬经典盟军敢死队，在江户时代的完美潜行。”" },
+  { id: 79, name_zh: "《家园：卡拉克沙漠》", name_en: "Homeworld: Deserts", steamAppId: 281610, genre: "模拟/策略", playtime: 15, desc: "“一部关于沙漠海战的RTS艺术品。”" },
+  { id: 80, name_zh: "《帝国时代 II：决定版》", name_en: "Age of Empires II: DE", steamAppId: 813780, genre: "模拟/策略", playtime: 40, desc: "“WOLOLO！一代人的RTS启蒙。”" },
+
+  // --- 补充佳作 (81-200) ---
+  { id: 81, name_zh: "《奥日与萤火意志》", name_en: "Ori and the Will...", steamAppId: 1057090, genre: "补充佳作", playtime: 12, desc: "“画面美到每一帧都可以做壁纸，但剧情刀得让人心碎。”" },
+  { id: 82, name_zh: "《蝙蝠侠：阿卡姆之城》", name_en: "Batman: Arkham City", steamAppId: 200260, genre: "补充佳作", playtime: 20, desc: "“迄今为止最好的超级英雄游戏，没有之一。”" },
+  { id: 83, name_zh: "《传说之下》", name_en: "Undertale", steamAppId: 391540, genre: "补充佳作", playtime: 6, desc: "“一个关于爱、和平与决心的像素史诗。”" },
+  { id: 84, name_zh: "《茶杯头》", name_en: "Cuphead", steamAppId: 268910, genre: "补充佳作", playtime: 10, desc: "“一款让我砸手柄，又忍不住重新开始的‘童年阴影’。”" },
+  { id: 85, name_zh: "《暗黑地牢 2》", name_en: "Darkest Dungeon II", steamAppId: 1940340, genre: "补充佳作", playtime: 40, desc: "“在绝望的马车上，继续承受压力。”" },
+  { id: 86, name_zh: "《地平线：零之曙光》", name_en: "Horizon Zero Dawn", steamAppId: 1151640, genre: "补充佳作", playtime: 30, desc: "“机械巨兽与原始部落的完美结合。”" },
+  { id: 87, name_zh: "《地铁：离去》", name_en: "Metro Exodus", steamAppId: 412020, genre: "补充佳作", playtime: 20, desc: "“火车之旅，温馨又残酷，是末世里难得的温情。”" },
+  { id: 88, name_zh: "《孤岛惊魂 3》", name_en: "Far Cry 3", steamAppId: 220240, genre: "补充佳作", playtime: 20, desc: "“Vass的疯狂定义了什么叫反派魅力。”" },
+  { id: 89, name_zh: "《古墓丽影：崛起》", name_en: "Rise of the Tomb Raider", steamAppId: 391220, genre: "补充佳作", playtime: 15, desc: "“劳拉的成长之路，从幸存者到冒险家。”" },
+  { id: 90, name_zh: "《鬼泣 5》", name_en: "Devil May Cry 5", steamAppId: 601150, genre: "补充佳作", playtime: 15, desc: "“我的血槽是空的，但我的S评分是满的。”" },
+  { id: 91, name_zh: "《合金弹头 3》", name_en: "Metal Slug 3", steamAppId: 250180, genre: "补充佳N", playtime: 2, desc: "“经典街机，每一帧都是艺术品。”" },
+  { id: 92, name_zh: "《晶体管》", name_en: "Transistor", steamAppId: 237930, genre: "补充佳作", playtime: 6, desc: "“一把会说话的剑，一个赛博朋克悲剧。”" },
+  { id: 93, name_zh: "《林中之夜》", name_en: "Night in the Woods", steamAppId: 481510, genre: "补充佳作", playtime: 8, desc: "“一个关于返乡、废柴和面对现实的故事。”" },
+  { id: 94, name_zh: "《掠食之魂》", name_en: "Spiritfarer", steamAppId: 972660, genre: "补充佳作", playtime: 25, desc: "“一款教你如何好好告别的治愈模拟器。”" },
+  { id: 95, name_zh: "《咩咩启示录》", name_en: "Cult of the Lamb", steamAppId: 1313140, genre: "补充佳作", playtime: 15, desc: "“经营邪教，顺便打打Roguelike。”" },
+  { id: 96, name_zh: "《女神异闻录 5 皇家版》", name_en: "Persona 5 Royal", steamAppId: 1687950, genre: "补充佳作", playtime: 100, desc: "“白天上课，晚上偷心，JRPG的时尚巅峰。”" },
+  { id: 97, name_zh: "《奇异人生 2》", name_en: "Life is Strange 2", steamAppId: 532210, genre: "补充佳作", playtime: 15, desc: "“一场关于兄弟情义和成长的公路之旅。”" },
+  { id: 98, name_zh: "《七日杀》", name_en: "7 Days to Die", steamAppId: 251570, genre: "补充佳作", playtime: 50, desc: "“白天捡垃圾，晚上被僵尸围殴。”" },
+  { id: 99, name_zh: "《巫师 2：国王刺客》", name_en: "The Witcher 2", steamAppId: 20920, genre: "补充佳作", playtime: 25, desc: "“杰洛特的第二部，剧情深度依然惊人。”" },
+  { id: 100, name_zh: "《盐与避难所》", name_en: "Salt and Sanctuary", steamAppId: 283640, genre: "补充佳作", playtime: 20, desc: "“2D横版的黑魂，绝望感丝毫不减。”" },
+  { id: 101, name_zh: "《伊苏 8：丹娜的陨涕日》", name_en: "Ys VIII", steamAppId: 579180, genre: "补充佳作", playtime: 40, desc: "“JRPG的黄金标杆，音乐和剧情都无懈可击。”" },
+  { id: 102, name_zh: "《战地 1 (战役)》", name_en: "Battlefield 1", steamAppId: 1238840, genre: "补充佳作", playtime: 6, desc: "“一战的残酷与浪漫，最好的战地单人剧情。”" },
+  { id: 103, name_zh: "《这是我的战争》", name_en: "This War of Mine", steamAppId: 282070, genre: "补充佳作", playtime: 10, desc: "“战争没有英雄，只有艰难活下去的普通人。”" },
+  { id: 104, name_zh: "《最终幻想 XV》", name_en: "Final Fantasy XV", steamAppId: 637650, genre: "补充佳作", playtime: 30, desc: "“四个兄弟的自驾游，和最终幻想的救赎。”" },
+  { id: 105, name_zh: "《生化奇兵 (重制版)》", name_en: "BioShock", steamAppId: 409710, genre: "补充佳作", playtime: 12, desc: "“欢迎来到销魂城，一个水下的哲学噩梦。”" },
+  { id: 106, name_zh: "《半条命 2》", name_en: "Half-Life 2", steamAppId: 220, genre: "补充佳作", playtime: 15, desc: "“FPS叙事的里程碑，G胖啥时候数3？”" },
+  { id: 107, name_zh: "《泰拉瑞亚》", name_en: "Terraria", steamAppId: 105600, genre: "补充佳作", playtime: 60, desc: "“2D版的MC，但战斗和探索深度超乎想象。”" },
+  { id: 108, name_zh: "《无主之地 2》", name_en: "Borderlands 2", steamAppId: 49520, genre: "补充佳作", playtime: 30, desc: "“刷宝射击的巅峰，帅杰克永远的神。”" },
+  { id: 109, name_zh: "《火炬之光 2》", name_en: "Torchlight II", steamAppId: 200710, genre: "补充佳作", playtime: 20, desc: "“暗黑风格的刷宝佳作，画风明亮。”" },
+  { id: 110, name_zh: "《地狱边境》", name_en: "Limbo", steamAppId: 48000, genre: "补充佳作", playtime: 4, desc: "“黑白剪影，压抑又精巧的解谜之旅。”" },
+  { id: 111, name_zh: "《王国之心 1.5+2.5》", name_en: "Kingdom Hearts", steamAppId: 2552430, genre: "补充佳作", playtime: 50, desc: "“迪士尼与最终幻想的奇妙碰撞。”" },
+  { id: 112, name_zh: "《恶灵附身 2》", name_en: "The Evil Within 2", steamAppId: 601430, genre: "补充佳作", playtime: 15, desc: "“三上真司的恐怖美学，这次有了开放世界。”" },
+  { id: 113, name_zh: "《异星探险家》", name_en: "ASTRONEER", steamAppId: 361420, genre: "补充佳作", playtime: 20, desc: "“在多彩的星球上，吸土、造车、探索。”" },
+  { id: 114, name_zh: "《恐怖黎明》", name_en: "Grim Dawn", steamAppId: 219990, genre: "补充佳作", playtime: 30, desc: "“暗黑2的精神续作，职业搭配自由度极高。”" },
+  { id: 115, name_zh: "《深海迷航》", name_en: "Subnautica", steamAppId: 264710, genre: "补充佳作", playtime: 30, desc: "“一款让你从观光潜水变成深海恐惧症的游戏。”" },
+  { id: 116, name_zh: "《深海迷航：零度之下》", name_en: "Subnautica: Below Zero", steamAppId: 848450, genre: "补充佳作", playtime: 20, desc: "“在冰冻的星球上继续你的深海恐惧。”" },
+  { id: 117, name_zh: "《无人深空》", name_en: "No Man's Sky", steamAppId: 275850, genre: "补充佳作", playtime: 100, desc: "“从史诗级欺诈到史诗级逆袭，探索无尽宇宙。”" },
+  { id: 118, name_zh: "《英灵神殿》", name_en: "Valheim", steamAppId: 892970, genre: "补充佳作", playtime: 60, desc: "“维京人的生存史诗，一个人也能玩得很快乐。”" },
+  { id: 119, name_zh: "《森林》", name_en: "The Forest", steamAppId: 242760, genre: "补充佳作", playtime: 20, desc: "“白天造房子，晚上和野人斗智斗勇。”" },
+  { id: 120, name_zh: "《绿色地狱》", name_en: "Green Hell", steamAppId: 815370, genre: "补充佳作", playtime: 20, desc: "“硬核雨林生存，你需要检查身上的每一条虫。”" },
+  { id: 121, name_zh: "《席德梅尔的海盗》", name_en: "Sid Meier's Pirates!", steamAppId: 3920, genre: "补充佳作", playtime: 10, desc: "“童年经典，最纯粹的海盗冒险。”" },
+  { id: 122, name_zh: "《骑马与砍杀：战团》", name_en: "Mount & Blade", steamAppId: 48700, genre: "补充佳作", playtime: 50, desc: "“中世纪打工皇帝，从一无所有到统一大陆。”" },
+  { id: 123, name_zh: "《Kenshi》", name_en: "Kenshi", steamAppId: 233860, genre: "补充佳作", playtime: 80, desc: "“一款让你体验社会底层的硬核沙盒RPG。”" },
+  { id: 124, name_zh: "《FTL: 超越光速》", name_en: "FTL: Faster Than Light", steamAppId: 212680, genre: "补充佳作", playtime: 10, desc: "“策略Roguelike的标杆，管理你的飞船和船员。”" },
+  { id: 125, name_zh: "《陷阵之志》", name_en: "Into the Breach", steamAppId: 590380, genre: "补充佳作", playtime: 10, desc: "“完美的回合制战棋，每一步都是在解谜。”" },
+  { id: 126, name_zh: "《死亡空间 (2008)》", name_en: "Dead Space", steamAppId: 17470, genre: "补充佳作", playtime: 12, desc: "“经典的肢解恐怖，艾萨克的第一次尖叫。”" },
+  { id: 127, name_zh: "《心灵杀手》", name_en: "Alan Wake", steamAppId: 108710, genre: "补充佳作", playtime: 10, desc: "“美剧风格的心理恐怖，用手电筒战斗。”" },
+  { id: 128, name_zh: "《极度恐慌》", name_en: "F.E.A.R.", steamAppId: 21090, genre: "补充佳作", playtime: 8, desc: "“子弹时间+日式恐怖，FPS的另类巅峰。”" },
+  { id: 129, name_zh: "《异形：隔离》", name_en: "Alien: Isolation", steamAppId: 214490, genre: "补充佳作", playtime: 18, desc: "“和一只聪明的异形玩捉迷藏，全程高能。”" },
+  { id: 130, name_zh: "《SOMA》", name_en: "SOMA", steamAppId: 282140, genre: "补充佳作", playtime: 9, desc: "“一个关于‘什么是人’的深海哲学恐怖故事。”" },
+  { id: 131, name_zh: "《失忆症：黑暗后裔》", name_en: "Amnesia", steamAppId: 57300, genre: "补充佳作", playtime: 8, desc: "“开创了‘躲藏式’恐怖游戏的经典。”" },
+  { id: 132, name_zh: "《看火人》", name_en: "Firewatch", steamAppId: 383870, genre: "补充佳作", playtime: 4, desc: "“一场关于孤独、逃避和对讲机的荒野之旅。”" },
+  { id: 133, name_zh: "《见证者》", name_en: "The Witness", steamAppId: 210970, genre: "补充佳作", playtime: 20, desc: "“一个美丽的孤岛，上面只有无数的‘一笔画’谜题。”" },
+  { id: 134, name_zh: "《塔洛斯法则》", name_en: "The Talos Principle", steamAppId: 257510, genre: "补充佳作", playtime: 15, desc: "“披着解谜外衣的哲学探讨，你是谁？”" },
+  { id: 135, name_zh: "《Antichamber》", name_en: "Antichamber", steamAppId: 219890, genre: "补充佳作", playtime: 6, desc: "“一款扭曲空间、颠覆你物理直觉的解谜游戏。”" },
+  { id: 136, name_zh: "《死亡回归》", name_en: "Returnal", steamAppId: 1649240, genre: "补充佳作", playtime: 20, desc: "“PS5移植，高难度的科幻恐怖Roguelike。”" },
+  { id: 137, name_zh: "《往日不再》", name_en: "Days Gone", steamAppId: 1259420, genre: "补充佳作", playtime: 40, desc: "“骑着摩托车打僵尸潮，末日下的铁汉柔情。”" },
+  { id: 138, name_zh: "《疯狂的麦克斯》", name_en: "Mad Max", steamAppId: 234140, genre: "补充佳作", playtime: 20, desc: "“在废土飙车、改装、打架，爽就完事了。”" },
+  { id: 139, name_zh: "《中土世界：暗影魔多》", name_en: "Shadow of Mordor", steamAppId: 241930, genre: "补充佳作", playtime: 15, desc: "“兽人养成模拟器，‘复仇’系统是核心。”" },
+  { id: 140, name_zh: "《中土世界：战争之影》", name_en: "Shadow of War", steamAppId: 356190, genre: "补充佳作", playtime: 25, desc: "“更庞大的兽人养成和攻城战。”" },
+  { id: 141, name_zh: "《吸血鬼幸存者》", name_en: "Vampire Survivors", steamAppId: 1794680, genre: "补充佳作", playtime: 15, desc: "“一个开创了品类的‘肉鸽’，停不下来。”" },
+  { id: 142, name_zh: "《土豆兄弟》", name_en: "Brotato", steamAppId: 1942280, genre: "补充佳作", playtime: 10, desc: "“快节奏的吸血鬼幸存者like，武器库更丰富。”" },
+  { id: 143, name_zh: "《循环英雄》", name_en: "Loop Hero", steamAppId: 1282730, genre: "补充佳作", playtime: 20, desc: "“我没玩游戏，是游戏在玩我，我只负责放卡牌。”" },
+  { id: 144, name_zh: "《邪恶冥刻》", name_en: "Inscryption", steamAppId: 1092790, genre: "补充佳作", playtime: 12, desc: "“一款伪装成卡牌游戏的元宇宙恐怖大作。”" },
+  { id: 145, name_zh: "《武士 零》", name_en: "Katana ZERO", steamAppId: 460950, genre: "补充佳作", playtime: 5, desc: "“一命通关的华丽像素动作，剧情和音乐满分。”" },
+  { id: 146, name_zh: "《迈阿密热线》", name_en: "Hotline Miami", steamAppId: 219150, genre: "补充佳作", playtime: 5, desc: "“复古、血腥、迷幻，上头BGM下的屠杀。”" },
+  { id: 147, name_zh: "《我的朋友佩德罗》", name_en: "My Friend Pedro", steamAppId: 557340, genre: "补充佳G", playtime: 5, desc: "“在香蕉的指引下，跳一曲子弹芭蕾。”" },
+  { id: 148, name_zh: "《忍者印记》", name_en: "Mark of the Ninja", steamAppId: 214560, genre: "补充佳作", playtime: 8, desc: "“2D潜行游戏的教科书，每一个暗杀都完美。”" },
+  { id: 149, name_zh: "《墨西哥英雄大混战 2》", name_en: "Guacamelee! 2", steamAppId: 534550, genre: "补充佳作", playtime: 10, desc: "“欢乐的墨西哥风银河恶魔城，鸡你太美。”" },
+  { id: 150, name_zh: "《赤痕：夜之仪式》", name_en: "Bloodstained", steamAppId: 692850, genre: "补充佳作", playtime: 20, desc: "“恶魔城精神续作，五十岚孝司宝刀未老。”" },
+  { id: 151, name_zh: "《神之亵渎》", name_en: "Blasphemous", steamAppId: 774361, genre: "补充佳作", playtime: 15, desc: "“充满宗教意味的受苦之旅，美术风格猎奇又华丽。”" },
+  { id: 152, name_zh: "《星球大战 绝地：陨落的武士团》", name_en: "Jedi: Fallen Order", steamAppId: 1172380, genre: "补充佳作", playtime: 20, desc: "“最好的星战动作游戏之一，光剑战斗手感扎实。”" },
+  { id: 153, name_zh: "《星球大战 绝地：幸存者》", name_en: "Jedi: Survivor", steamAppId: 1774580, genre: "补充佳作", playtime: 25, desc: "“全面升级的续作，但PC优化一度是灾难。”" },
+  { id: 154, name_zh: "《只狼：影逝二度》", name_en: "Sekiro", steamAppId: 814380, genre: "补充佳作", playtime: 30, desc: "“犹豫，就会败北。格挡，才是浪漫。”" },
+  { id: 155, name_zh: "《仁王》", name_en: "Nioh", steamAppId: 485510, genre: "补充佳作", playtime: 40, desc: "“日本战国版的魂系游戏，刷装备停不下来。”" },
+  { id: 156, name_zh: "《迸发 2》", name_en: "The Surge 2", steamAppId: 644830, genre: "补充佳作", playtime: 25, desc: "“科幻版的魂系，断肢系统是亮点。”" },
+  { id: 157, name_zh: "《嗜血代码》", name_en: "Code Vein", steamAppId: 678960, genre: "补充佳作", playtime: 30, desc: "“二次元魂系，捏人系统才是本体。”" },
+  { id: 158, name_zh: "《Mortal Shell》", name_en: "Mortal Shell", steamAppId: 1110910, genre: "补充佳作", playtime: 10, desc: "“硬化系统是特色，美术风格很棒的魂like。”" },
+  { id: 159, name_zh: "《匹诺曹的谎言》", name_en: "Lies of P", steamAppId: 1627720, genre: "补充佳作", playtime: 30, desc: "“最强魂like之一，黑童话版的《血源》。”" },
+  { id: 160, name_zh: "《卧龙：苍天陨落》", name_en: "Wo Long", steamAppId: 1448440, genre: "补充佳作", playtime: 25, desc: "“三国版的仁王，‘化解’系统是核心。”" },
+  { id: 161, name_zh: "《最终幻想 7：重制版》", name_en: "FFVII Remake", steamAppId: 1462040, genre: "补充佳作", playtime: 35, desc: "“次世代JRPG的标杆，克劳德更美了。”" },
+  { id: 162, name_zh: "《如龙 0》", name_en: "Yakuza 0", steamAppId: 638970, genre: "补充佳作", playtime: 30, desc: "“80年代的日本黑帮，剧情和支线都极其出色。”" },
+  { id: 163, name_zh: "《如龙 7》", name_en: "Yakuza: Like a Dragon", steamAppId: 1235140, genre: "补充佳作", playtime: 45, desc: "“从动作变为回合制RPG，但热血不减。”" },
+  { id: 164, name_zh: "《女神异闻录 4 黄金版》", name_en: "Persona 4 Golden", steamAppId: 1113000, genre: "补充佳作", playtime: 60, desc: "“在乡下小镇抓凶手，顺便谈恋爱。”" },
+  { id: 165, name_zh: "《八方旅人 2》", name_en: "Octopath Traveler II", steamAppId: 1971650, genre: "补充佳作", playtime: 60, desc: "“HD-2D像素的巅峰，音乐和群像剧的完美结合。”" },
+  { id: 166, name_zh: "《Chained Echoes》", name_en: "Chained Echoes", steamAppId: 1229240, genre: "补充佳作", playtime: 30, desc: "“致敬黄金时代JRPG的独立神作。”" },
+  { id: 167, name_zh: "《星之海》", name_en: "Sea of Stars", steamAppId: 1244090, genre: "补充佳作", playtime: 25, desc: "“复古JRPG的又一佳作，美术和音乐极其治愈。”" },
+  { id: 168, name_zh: "《远星物语》", name_en: "CrossCode", steamAppId: 368340, genre: "补充佳作", playtime: 40, desc: "“一个伪装成MMO的ARPG，内容量爆炸。”" },
+  { id: 169, name_zh: "《Omori》", name_en: "Omori", steamAppId: 1150690, genre: "补充佳T", playtime: 20, desc: "“一款手绘风格的心理恐怖RPG，后劲极大。”" },
+  { id: 170, name_zh: "《GRIS》", name_en: "GRIS", steamAppId: 683320, genre: "补充佳作", playtime: 4, desc: "“一款可以玩的艺术品，关于悲伤和治愈。”" },
+  { id: 171, name_zh: "《小小梦魇 2》", name_en: "Little Nightmares II", steamAppId: 860510, genre: "补充佳作", playtime: 6, desc: "“精致的恐怖解谜，压抑感拉满。”" },
+  { id: 172, name_zh: "《风之旅人》", name_en: "Journey", steamAppId: 638230, genre: "补充佳作", playtime: 2, desc: "“一场关于相遇与分离的无言之旅，治愈一切。”" },
+  { id: 173, name_zh: "《ABZÛ》", name_en: "ABZÛ", steamAppId: 384190, genre: "补充佳作", playtime: 2, desc: "“《风之旅人》的海底版，一场视觉盛宴。”" },
+  { id: 174, name_zh: "《漫漫长夜》", name_en: "The Long Dark", steamAppId: 305620, genre: "补充佳作", playtime: 20, desc: "“孤独的雪地生存，对抗寒冷与野兽。”" },
+  { id: 175, name_zh: "《饥荒》", name_en: "Don't Starve", steamAppId: 219740, genre: "补充佳作", playtime: 30, desc: "“蒂姆伯顿风格的生存游戏，活下去就是胜利。”" },
+  { id: 176, name_zh: "《僵尸毁灭工程》", name_en: "Project Zomboid", steamAppId: 108600, genre: "补充佳作", playtime: 50, desc: "“最真实的末日生存，你总会死于各种意外。”" },
+  { id: 177, name_zh: "《十字军之王 3》", name_en: "Crusader Kings III", steamAppId: 1158310, genre: "补充佳作", playtime: 100, desc: "“P社的宫廷RPG，家族、阴谋与联姻。”" },
+  { id: 178, name_zh: "《全面战争：战锤 3》", name_en: "Total War: Warhammer III", steamAppId: 1142710, genre: "补充佳作", playtime: 60, desc: "“奇幻史诗大战略，神与魔的对决。”" },
+  { id: 179, name_zh: "《全面战争：三国》", name_en: "Total War: Three Kingdoms", steamAppId: 779340, genre: "补充佳作", playtime: 50, desc: "“最好的三国战略游戏之一，美术风格惊艳。”" },
+  { id: 180, name_zh: "《奇迹时代 4》", name_en: "Age of Wonders 4", steamAppId: 1669000, genre: "补充佳作", playtime: 40, desc: "“4X策略与回合制战棋的完美结合。”" },
+  { id: 181, name_zh: "《战锤 40K：爆矢枪》", name_en: "Boltgun", steamAppId: 2005010, genre: "补充佳作", playtime: 8, desc: "“复古FPS，在像素的血浆中射爆混沌。”" },
+  { id: 182, name_zh: "《Hi-Fi RUSH》", name_en: "Hi-Fi RUSH", steamAppId: 1817230, genre: "补充佳作", playtime: 10, desc: "“音乐节奏+动作游戏，2023年的黑马神作。”" },
+  { id: 183, name_zh: "《Pentiment》", name_en: "Pentiment", steamAppId: 1205520, genre: "补充佳作", playtime: 15, desc: "“黑曜石出品，中世纪手抄本风格的叙事解谜。”" },
+  { id: 184, name_zh: "《TUNIC》", name_en: "TUNIC", steamAppId: 553420, genre: "补充佳作", playtime: 12, desc: "“披着塞尔达外衣的独立解谜神作，游戏手册是关键。”" },
+  { id: 185, name_zh: "《Signalis》", name_en: "Signalis", steamAppId: 1262350, genre: "补充佳作", playtime: 8, desc: "“复古科幻恐怖，致敬《生化危机》和《寂静岭》。”" },
+  { id: 186, name_zh: "《Dredge》", name_en: "Dredge", steamAppId: 1562430, genre: "补充佳作", playtime: 10, desc: "“白天钓鱼，晚上钓上克苏鲁。”" },
+  { id: 187, name_zh: "《冲就完事模拟器》", name_en: "PowerWash Simulator", steamAppId: 1290000, genre: "补充佳作", playtime: 30, desc: "“解压神器，强迫症的福音。”" },
+  { id: 188, name_zh: "《硬核太空》", name_en: "Hardspace: Shipbreaker", steamAppId: 1161580, genre: "补充佳作", playtime: 25, desc: "“在太空拆解飞船，小心爆炸和负债。”" },
+  { id: 189, name_zh: "《网络奇兵：重制版》", name_en: "System Shock", steamAppId: 482400, genre: "补充佳作", playtime: 15, desc: "“经典沉浸式模拟的完美重制。”" },
+  { id: 190, name_zh: "《生化危机 7》", name_en: "Resident Evil 7", steamAppId: 418370, genre: "补充佳作", playtime: 10, desc: "“第一人称恐怖回归，欢迎来到贝克家。”" },
+  { id: 191, name_zh: "《生化危机 2 重制版》", name_en: "Resident Evil 2", steamAppId: 883710, genre: "补充佳作", playtime: 8, desc: "“冷饭热炒的天花板，里昂和王阿姨YYDS。”" },
+  { id: 192, name_zh: "《生化危机 8：村庄》", name_en: "RE: Village", steamAppId: 1196590, genre: "补充佳作", playtime: 10, desc: "“恐怖与动作的平衡，吸血鬼夫人太高了。”" },
+  { id: 193, name_zh: "《DOOM (2016)》", name_en: "DOOM", steamAppId: 379720, genre: "补充佳作", playtime: 12, desc: "“重振雄风的FPS经典，一路杀穿地狱。”" },
+  { id: 194, name_zh: "《德军总部 2：新巨像》", name_en: "Wolfenstein II", steamAppId: 612880, genre: "补充佳作", playtime: 12, desc: "“在纳粹占领的美国，继续手撕法西斯。”" },
+  { id: 195, name_zh: "《死亡循环》", name_en: "Deathloop", steamAppId: 1252330, genre: "补充佳作", playtime: 15, desc: "“阿肯的沉浸式模拟，在时间循环中完成刺杀。”" },
+  { id: 196, name_zh: "《幽灵线：东京》", name_en: "Ghostwire: Tokyo", steamAppId: 1475810, genre: "补充佳作", playtime: 15, desc: "“在东京街头当阴阳师，手印帅就完事了。”" },
+  { id: 197, name_zh: "《原子之心》", name_en: "Atomic Heart", steamAppId: 668580, genre: "补充佳作", playtime: 15, desc: "“苏联科幻的暴力美学，双子机器人很顶。”" },
+  { id: 198, name_zh: "《如龙 8》", name_en: "Like a Dragon: Infinite Wealth", steamAppId: 2072450, genre: "补充佳作", playtime: 60, desc: "“JRPG的又一巅峰，夏威夷的热血与感动。”" },
+  { id: 199, name_zh: "《遗迹：灰烬重生》", name_en: "Remnant: From the Ashes", steamAppId: 617290, genre: "补充佳作", playtime: 20, desc: "“带枪的魂系，刷刷刷的乐趣。”" },
+  { id: 200, name_zh: "《幽灵行者》", name_en: "Ghostrunner", steamAppId: 1139900, genre: "补充佳作", playtime: 8, desc: "“赛博朋克跑酷+一击必杀，手残党噩梦。”" }
+];
+
+// 辅助函数：获取 Steam 封面图 (带自动降级)
+const getSteamCover = (appId, gameName) => {
+    if (!appId) {
+        const encodedName = encodeURIComponent(gameName);
+        return `https://placehold.co/600x350/1a1a1a/ffffff?text=${encodedName}`;
+    }
+    return `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/header.jpg`;
+};
+
+// 📏 尺寸常量
+const CARD_WIDTH = 300;
+const CARD_HEIGHT = 160;
+const GAP = 20;
+
+// 🎨 游戏卡片组件 (包含屏蔽按钮)
+const GameCard = ({ game, offsetFromCenter, onClick, onToggleWishlist, isWishlisted, onBanGame }) => {
+    const maxDistance = CARD_WIDTH * 1.5;
+    const distance = Math.min(Math.abs(offsetFromCenter), maxDistance);
+    const ratio = 1 - distance / maxDistance;
+
+    const scale = 1 + (Math.max(0, ratio) * 0.35);
+    const opacity = 0.3 + (Math.max(0, ratio) * 0.7);
+    const zIndex = Math.round(ratio * 100);
+    const shadowIntensity = Math.max(0, ratio) * 40;
+
+    return (
+        <div
+            className="absolute top-0 flex flex-col items-center justify-center transition-transform duration-75 select-none"
+            style={{
+                width: `${CARD_WIDTH}px`,
+                height: `${CARD_HEIGHT}px`,
+                left: `calc(50% - ${CARD_WIDTH / 2}px)`,
+                transform: `translateX(${offsetFromCenter}px) scale(${scale})`,
+                zIndex: zIndex,
+                opacity: opacity,
+                filter: `grayscale(${100 - (ratio * 100)}%)`,
+            }}
+        >
+            <div
+                className="w-full h-full bg-white overflow-hidden relative group cursor-pointer"
+                onClick={() => onClick(game)}
+                style={{
+                    boxShadow: `0 ${shadowIntensity / 2}px ${shadowIntensity}px -5px rgba(0,0,0,0.3)`
+                }}
+            >
+                <img
+                    src={getSteamCover(game.steamAppId, game.name_en)}
+                    alt={game.name_en}
+                    className="w-full h-full object-cover"
+                    draggable="false"
+                />
+                <div className="absolute inset-0 bg-gradient-to-tr from-white/0 via-white/30 to-white/0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"></div>
+
+                {/* 悬浮操作按钮组 (调整了位置和样式) */}
+                {ratio > 0.8 && (
+                    <div className="absolute top-2 right-2 flex flex-col gap-2 z-20">
+                        {/* 收藏按钮 */}
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onToggleWishlist(game.id);
+                            }}
+                            className="p-2 rounded-full bg-black/50 hover:bg-black/70 transition-colors backdrop-blur-sm shadow-md"
+                            title="Add to Wishlist"
+                        >
+                            <Heart
+                                className={`w-4 h-4 transition-all ${isWishlisted ? 'fill-red-500 text-red-500' : 'text-white'}`}
+                            />
+                        </button>
+                        
+                        {/* 屏蔽按钮 - 放在心愿单下方，带斜杠禁止图标 */}
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onBanGame(game.id);
+                            }}
+                            className="p-2 rounded-full bg-black/50 hover:bg-red-600/80 transition-colors backdrop-blur-sm shadow-md group/ban"
+                            title="Ban this game"
+                        >
+                            <Ban className="w-4 h-4 text-white/70 group-hover/ban:text-white" />
+                        </button>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
+
+const App = () => {
+    const [showIntro, setShowIntro] = useState(true);
+
+    if (!GAMES_DATA || GAMES_DATA.length === 0) {
+        return <div className="p-10 text-black text-2xl">❌ 错误：无法读取游戏数据。</div>;
+    }
+
+    const [status, setStatus] = useState('idle');
+    const [scrollPos, setScrollPos] = useState(0);
+    const [resultGame, setResultGame] = useState(null);
+    
+    // 🔍 筛选状态
+    const [selectedGenres, setSelectedGenres] = useState([]); // 选中的类型 (Include)
+    const [excludedGenres, setExcludedGenres] = useState([]); // 屏蔽的类型 (Exclude)
+    const [bannedGames, setBannedGames] = useState([]);       // 屏蔽的具体游戏 ID
+    
+    const [genreSearchTerm, setGenreSearchTerm] = useState('');
+    const [gameSearchTerm, setGameSearchTerm] = useState(''); 
+
+    // ❤️ 心愿单状态
+    const [wishlist, setWishlist] = useState([]);
+    const [wishlistMode, setWishlistMode] = useState(false); 
+
+    // 👇 智能提取所有标签（并拆分）
+    const allGenres = useMemo(() => {
+        const genresSet = new Set();
+        GAMES_DATA.forEach(game => {
+            if (!game.genre) return;
+            const splitGenres = game.genre.split('/');
+            splitGenres.forEach(g => genresSet.add(g.trim()));
+        });
+        return Array.from(genresSet).sort();
+    }, []);
+
+    // 👇 核心过滤逻辑 (包含屏蔽功能)
+    const filteredGames = useMemo(() => {
+        let games = GAMES_DATA;
+
+        // 0. 首先剔除被单独屏蔽的游戏
+        if (bannedGames.length > 0) {
+            games = games.filter(game => !bannedGames.includes(game.id));
+        }
+
+        // 1. 心愿单模式
+        if (wishlistMode) {
+            games = games.filter(game => wishlist.includes(game.id));
+        }
+
+        // 2. 类型筛选 (Include & Exclude)
+        games = games.filter(game => {
+            if (!game.genre) return false;
+            const gameGenres = game.genre.split('/').map(g => g.trim());
+
+            // A. 类型屏蔽逻辑 (Exclude)
+            if (excludedGenres.length > 0) {
+                const isExcluded = excludedGenres.some(excluded => gameGenres.includes(excluded));
+                if (isExcluded) return false;
+            }
+
+            // B. 类型选中逻辑 (Include)
+            if (selectedGenres.length > 0) {
+                return selectedGenres.some(selected => gameGenres.includes(selected));
+            }
+
+            return true;
+        });
+
+        // 3. 游戏名搜索
+        if (gameSearchTerm) {
+            const term = gameSearchTerm.toLowerCase();
+            games = games.filter(game => {
+                const zh = game.name_zh.toLowerCase();
+                const en = game.name_en.toLowerCase();
+                return zh.includes(term) || en.includes(term);
+            });
+        }
+        
+        return games;
+    }, [selectedGenres, excludedGenres, bannedGames, wishlist, wishlistMode, gameSearchTerm]);
+
+    // 重置状态逻辑
+    const prevFilteredLength = useRef(GAMES_DATA.length);
+    const [activeGame, setActiveGame] = useState(filteredGames.length > 0 ? filteredGames[0] : null);
+
+    useEffect(() => {
+        if (filteredGames.length !== prevFilteredLength.current || (filteredGames.length > 0 && filteredGames[0] !== activeGame)) {
+             prevFilteredLength.current = filteredGames.length;
+             setScrollPos(0);
+             setActiveGame(filteredGames.length > 0 ? filteredGames[0] : null);
+        }
+    }, [filteredGames]);
+
+
+    // 可见标签
+    const visibleGenres = useMemo(() => {
+        if (!genreSearchTerm) return allGenres;
+        return allGenres.filter(g => g.toLowerCase().includes(genreSearchTerm.toLowerCase()));
+    }, [allGenres, genreSearchTerm]);
+
+    const containerRef = useRef(null);
+    const isDragging = useRef(false);
+    const startX = useRef(0);
+    const startScrollPos = useRef(0);
+    const lastDragTime = useRef(0);
+    const velocity = useRef(0);
+    const animationFrameId = useRef(null);
+
+    const totalContentWidth = filteredGames.length * (CARD_WIDTH + GAP);
+
+    // 👇 筛选逻辑处理
+    const toggleGenre = (genre) => {
+        if (status === 'rolling') return;
+
+        if (selectedGenres.includes(genre)) {
+            // 当前是选中 -> 变为屏蔽
+            setSelectedGenres(prev => prev.filter(g => g !== genre));
+            setExcludedGenres(prev => [...prev, genre]);
+        } else if (excludedGenres.includes(genre)) {
+            // 当前是屏蔽 -> 变为重置(未选)
+            setExcludedGenres(prev => prev.filter(g => g !== genre));
+        } else {
+            // 当前是未选 -> 变为选中
+            setSelectedGenres(prev => [...prev, genre]);
+        }
+    };
+
+    const toggleWishlist = (gameId) => {
+        setWishlist(prev => {
+            if (prev.includes(gameId)) {
+                return prev.filter(id => id !== gameId);
+            } else {
+                return [...prev, gameId];
+            }
+        });
+    };
+
+    const banGame = (gameId) => {
+        if (window.confirm("确定要暂时屏蔽这款游戏吗？它将不会出现在随机结果中，直到重置。")) {
+            setBannedGames(prev => [...prev, gameId]);
+        }
+    };
+
+    const resetFilter = () => {
+        if (status === 'rolling') return;
+        setSelectedGenres([]);
+        setExcludedGenres([]);
+        setBannedGames([]); 
+        setGenreSearchTerm('');
+        setGameSearchTerm('');
+        setWishlistMode(false);
+    };
+
+    // 📍 核心逻辑
+    const updateActiveGame = useCallback((currentPos) => {
+        if (filteredGames.length === 0) {
+            setActiveGame(null);
+            return;
+        }
+        const itemWidth = CARD_WIDTH + GAP;
+        let index = Math.round(-currentPos / itemWidth);
+
+        // 处理循环索引
+        index = index % filteredGames.length;
+        if (index < 0) index += filteredGames.length;
+
+        if (filteredGames[index]) {
+            setActiveGame(filteredGames[index]);
+        }
+    }, [filteredGames]);
+
+    const handleMouseDown = (e) => {
+        if (status === 'rolling') return;
+        isDragging.current = true;
+        startX.current = e.pageX || e.touches?.[0].pageX;
+        startScrollPos.current = scrollPos;
+        velocity.current = 0;
+        lastDragTime.current = Date.now();
+        if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
+    };
+
+    const handleMouseMove = (e) => {
+        if (!isDragging.current) return;
+        const x = e.pageX || e.touches?.[0].pageX;
+        const delta = x - startX.current;
+        const newPos = startScrollPos.current + delta;
+
+        const now = Date.now();
+        const dt = now - lastDragTime.current;
+        if (dt > 0) {
+            velocity.current = (delta - (scrollPos - startScrollPos.current)) / dt;
+        }
+        lastDragTime.current = now;
+
+        setScrollPos(newPos);
+        updateActiveGame(newPos);
+    };
+
+    const handleMouseUp = () => {
+        if (!isDragging.current) return;
+        isDragging.current = false;
+
+        const applyInertia = () => {
+            velocity.current *= 0.92;
+            if (Math.abs(velocity.current) < 0.1) {
+                snapToNearest();
+                return;
+            }
+            setScrollPos(prev => {
+                const next = prev + velocity.current * 15;
+                updateActiveGame(next);
+                return next;
+            });
+            animationFrameId.current = requestAnimationFrame(applyInertia);
+        };
+        applyInertia();
+    };
+
+    const snapToNearest = () => {
+        const itemWidth = CARD_WIDTH + GAP;
+        setScrollPos(prev => {
+            const targetIndex = Math.round(prev / itemWidth);
+            const targetPos = targetIndex * itemWidth;
+
+            const animateSnap = () => {
+                setScrollPos(current => {
+                    const diff = targetPos - current;
+                    if (Math.abs(diff) < 1) {
+                        updateActiveGame(targetPos);
+                        return targetPos;
+                    }
+                    const next = current + diff * 0.2;
+                    updateActiveGame(next);
+                    animationFrameId.current = requestAnimationFrame(animateSnap);
+                    return next;
+                });
+            };
+            animateSnap();
+            return prev;
+        });
+    };
+
+    const startRoulette = () => {
+        if (status === 'rolling' || filteredGames.length === 0) return;
+        setStatus('rolling');
+
+        const winnerIndex = Math.floor(Math.random() * filteredGames.length);
+        const winnerGame = filteredGames[winnerIndex];
+
+        const itemWidth = CARD_WIDTH + GAP;
+
+        const currentVirtualIndex = Math.round(-scrollPos / itemWidth);
+        const minSpins = 40;
+        const baseTargetIndex = currentVirtualIndex + minSpins;
+        const length = filteredGames.length;
+        const currentMod = baseTargetIndex % length;
+        const safeCurrentMod = currentMod < 0 ? currentMod + length : currentMod;
+        const remainder = (winnerIndex - safeCurrentMod + length) % length;
+        const targetVirtualIndex = baseTargetIndex + remainder;
+        const targetPos = -(targetVirtualIndex * itemWidth);
+
+        const duration = 5000;
+        const startTime = Date.now();
+        const startPos = scrollPos;
+
+        const animateRoll = () => {
+            const now = Date.now();
+            const progress = Math.min((now - startTime) / duration, 1);
+            const ease = 1 - Math.pow(1 - progress, 4);
+            const currentP = startPos + (targetPos - startPos) * ease;
+
+            setScrollPos(currentP);
+            updateActiveGame(currentP);
+
+            if (progress < 1) {
+                animationFrameId.current = requestAnimationFrame(animateRoll);
+            } else {
+                setScrollPos(targetPos);
+                updateActiveGame(targetPos);
+                setTimeout(() => {
+                    setStatus('result');
+                    setResultGame(winnerGame);
+                }, 300);
+            }
+        };
+
+        animationFrameId.current = requestAnimationFrame(animateRoll);
+    };
+
+    const reset = () => {
+        setStatus('idle');
+        setResultGame(null);
+    };
+
+    const renderCards = () => {
+        if (filteredGames.length === 0) {
+            return <div className="text-slate-400 text-lg">No games found...</div>;
+        }
+
+        const visibleCards = [];
+        const itemWidth = CARD_WIDTH + GAP;
+
+        filteredGames.forEach((game, index) => {
+            const basePos = index * itemWidth;
+            let realPos = basePos + scrollPos;
+            const halfTotalWidth = totalContentWidth / 2;
+
+            if (totalContentWidth > window.innerWidth) {
+                while (realPos > halfTotalWidth) realPos -= totalContentWidth;
+                while (realPos < -halfTotalWidth) realPos += totalContentWidth;
+            }
+
+            if (Math.abs(realPos) < window.innerWidth / 2 + CARD_WIDTH) {
+                visibleCards.push(
+                    <GameCard
+                        key={game.id}
+                        game={game}
+                        offsetFromCenter={realPos}
+                        isWishlisted={wishlist.includes(game.id)}
+                        onToggleWishlist={toggleWishlist}
+                        onBanGame={banGame}
+                        onClick={() => {
+                            if (Math.abs(realPos) < 5) {
+                                setStatus('result');
+                                setResultGame(game);
+                            }
+                        }}
+                    />
+                );
+            }
+        });
+
+        return visibleCards;
+    };
+
+    return (
+        <div className="relative min-h-screen bg-white text-slate-900 font-sans overflow-hidden flex flex-col select-none">
+            
+            {/* 开幕引导页 */}
+            <div 
+                onClick={() => setShowIntro(false)}
+                className={`fixed inset-0 z-50 bg-white flex flex-col items-center justify-center cursor-pointer transition-transform duration-1000 ease-in-out ${showIntro ? 'translate-y-0' : '-translate-y-full'}`}
+            >
+                <div className="text-center space-y-4 animate-pulse">
+                    <p className="text-4xl md:text-6xl font-black text-blue-600 italic tracking-tighter">
+                        You know you want to start
+                    </p>
+                    <p className="text-4xl md:text-6xl font-black text-blue-600 italic tracking-tighter">
+                        You must start now
+                    </p>
+                </div>
+                <div className="absolute bottom-10 animate-bounce text-slate-400">
+                    <ChevronUp className="w-8 h-8" />
+                </div>
+            </div>
+
+            {/* 背景装饰 */}
+            <div className="fixed inset-0 pointer-events-none">
+                <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[50%] bg-blue-50 rounded-full blur-[120px] opacity-60"></div>
+                <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[50%] bg-purple-50 rounded-full blur-[120px] opacity-60"></div>
+                <div className="absolute inset-0 opacity-[0.03] bg-[size:20px_20px] bg-[linear-gradient(to_right,#000_1px,transparent_1px),linear-gradient(to_bottom,#000_1px,transparent_1px)]"></div>
+            </div>
+
+            {/* 1. 顶部标题 */}
+            <header className="relative z-10 py-6 text-center">
+                <div className="inline-flex items-center gap-3 border-b-2 border-black pb-3 px-6">
+                    <Gamepad2 className="w-6 h-6 text-black" />
+                    <h1 className="text-2xl md:text-3xl font-black tracking-[0.2em] uppercase text-black">
+                        Decisive Gamer
+                    </h1>
+                </div>
+            </header>
+            
+            {/* 👇 0. 中央大搜索框 */}
+            <div className="relative z-30 flex justify-center pb-4">
+                <div className="relative group w-64 md:w-80">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-blue-600 transition-colors" />
+                    <input 
+                        type="text" 
+                        placeholder="Search game..." 
+                        value={gameSearchTerm}
+                        onChange={(e) => setGameSearchTerm(e.target.value)}
+                        className="w-full bg-white/80 backdrop-blur-sm border border-slate-300 rounded-full pl-10 pr-4 py-2 text-sm font-medium focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-100 transition-all placeholder:text-slate-400 shadow-sm"
+                    />
+                </div>
+            </div>
+
+            {/* 2. 游戏滚动区域 */}
+            <div
+                className="relative z-10 w-full h-[260px] flex items-center justify-center overflow-hidden cursor-grab active:cursor-grabbing"
+                onMouseDown={handleMouseDown}
+                onTouchStart={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onTouchMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onTouchEnd={handleMouseUp}
+                onMouseLeave={handleMouseUp}
+                ref={containerRef}
+            >
+                {/* 中央选中线 */}
+                <div className="absolute left-1/2 top-10 bottom-10 w-[1px] bg-black/20 z-0 pointer-events-none"></div>
+                <div className="absolute top-[20px] left-1/2 -translate-x-1/2 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-t-[8px] border-t-black z-20"></div>
+
+                {/* 卡片容器 */}
+                <div className="relative w-full h-full flex items-center justify-center">
+                    {renderCards()}
+                </div>
+            </div>
+
+            {/* 3. 中部信息区 */}
+            <div className="relative z-10 flex-grow flex flex-col items-center justify-start pt-6 space-y-2 h-32">
+                {activeGame ? (
+                    <div className="text-center px-4 transition-all duration-300 animate-fade-in">
+                        <h2 className="text-3xl md:text-5xl font-black text-black tracking-tighter leading-tight">
+                            {activeGame.name_zh.replace(/[《》]/g, '')}
+                        </h2>
+                        <p className="text-slate-400 text-sm md:text-base font-medium mt-2 uppercase tracking-widest">
+                            {activeGame.name_en}
+                        </p>
+                        <div className="flex gap-2 justify-center mt-4">
+                            {activeGame.genre && activeGame.genre.split('/').map((g, i) => (
+                                <span key={i} className="px-3 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-full border border-slate-200">
+                                    {g.trim()}
+                                </span>
+                            ))}
+                            <span className="flex items-center gap-1 text-xs text-slate-500 font-bold ml-2">
+                                <Clock className="w-3 h-3" /> {activeGame.playtime ? `${activeGame.playtime}H` : '未知'}
+                            </span>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="text-slate-400 font-bold">
+                        {filteredGames.length === 0 ? "No Games Found..." : "Drag to Select"}
+                    </div>
+                )}
+            </div>
+
+            {/* 4. 底部按钮区 */}
+            <div className="relative z-20 pb-16 md:pb-24 flex justify-center">
+                {status === 'idle' ? (
+                    <button
+                        onClick={startRoulette}
+                        disabled={filteredGames.length === 0}
+                        className={`group relative px-12 py-5 font-bold text-lg tracking-[0.15em] transition-all overflow-hidden rounded-full shadow-xl ${filteredGames.length === 0
+                                ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                                : 'bg-black text-white hover:scale-105 active:scale-95 hover:shadow-2xl hover:shadow-purple-500/20'
+                            }`}
+                    >
+                        {filteredGames.length > 0 && (
+                            <>
+                                <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl"></div>
+                                <div className="absolute inset-0 w-full h-full bg-black opacity-100 group-hover:opacity-90 transition-opacity duration-300 rounded-full"></div>
+                            </>
+                        )}
+
+                        <span className="relative flex items-center gap-3 z-10 group-hover:text-transparent group-hover:bg-clip-text group-hover:bg-gradient-to-r group-hover:from-blue-200 group-hover:to-pink-200 transition-all">
+                            <Sparkles className={`w-5 h-5 ${filteredGames.length > 0 ? 'text-yellow-400 group-hover:text-white animate-pulse' : 'text-slate-500'}`} />
+                            {filteredGames.length > 0 ? 'RANDOMIZE' : 'NO GAMES'}
+                        </span>
+
+                        {filteredGames.length > 0 && (
+                            <div className="absolute top-0 -left-[100%] w-1/2 h-full bg-gradient-to-r from-transparent via-white/20 to-transparent skew-x-[30deg] group-hover:animate-shine" />
+                        )}
+                    </button>
+                ) : status === 'rolling' ? (
+                    <div className="flex flex-col items-center gap-2">
+                        <div className="w-12 h-12 border-4 border-slate-200 border-t-black rounded-full animate-spin"></div>
+                        <span className="text-xs font-bold text-slate-300 tracking-widest mt-2">SEARCHING FATE...</span>
+                    </div>
+                ) : (
+                    <button
+                        onClick={reset}
+                        className="px-10 py-4 bg-white hover:bg-slate-50 text-black font-bold text-lg tracking-widest border-2 border-black transition-colors rounded-full"
+                    >
+                        BACK TO LIST
+                    </button>
+                )}
+            </div>
+
+            {/* 5. 左下角筛选面板 (支持三态切换：选中/屏蔽/重置) */}
+            <div className="fixed bottom-6 left-6 z-40 w-48 bg-white/90 backdrop-blur-md border border-slate-200 rounded-xl shadow-2xl p-4 flex flex-col gap-3 transition-all hover:bg-white animate-fade-in max-h-[60vh]">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                    <div className="flex items-center gap-2">
+                        <Hash className="w-4 h-4 text-black" />
+                        <span className="font-black text-xs tracking-widest text-black">TAGS</span>
+                    </div>
+                    {(selectedGenres.length > 0 || excludedGenres.length > 0 || wishlistMode || bannedGames.length > 0) && (
+                        <button 
+                            onClick={resetFilter}
+                            className="text-[10px] font-bold text-slate-400 hover:text-red-500 transition-colors uppercase"
+                        >
+                            Reset All
+                        </button>
+                    )}
+                </div>
+                
+                {/* 💖 心愿单模式开关 */}
+                <button 
+                    onClick={() => {
+                        if (status !== 'rolling') setWishlistMode(!wishlistMode);
+                    }}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-all border ${
+                        wishlistMode 
+                        ? 'bg-red-50 border-red-200 text-red-600 shadow-sm' 
+                        : 'bg-slate-50 border-slate-100 text-slate-500 hover:bg-slate-100'
+                    }`}
+                >
+                    <div className="flex items-center gap-2">
+                        <Heart className={`w-3 h-3 ${wishlistMode ? 'fill-red-600' : ''}`} />
+                        <span className="text-[10px] font-bold">WISHLIST</span>
+                    </div>
+                    <span className="text-[10px] font-mono bg-white/50 px-1.5 rounded">
+                        {wishlist.length}
+                    </span>
+                </button>
+
+                 {/* 🚫 已屏蔽游戏数量提示 */}
+                 {bannedGames.length > 0 && (
+                     <div className="w-full flex items-center justify-between px-3 py-1.5 rounded-lg bg-slate-100 text-slate-500 text-[10px]">
+                         <div className="flex items-center gap-2">
+                             <Ban className="w-3 h-3" />
+                             <span>Banned Games</span>
+                         </div>
+                         <span className="font-mono">{bannedGames.length}</span>
+                     </div>
+                 )}
+
+                {/* 标签列表 (单列垂直滚动) */}
+                <div className="flex flex-col gap-1 overflow-y-auto pr-1 custom-scrollbar">
+                    {visibleGenres.length > 0 ? visibleGenres.map(genre => {
+                        const isSelected = selectedGenres.includes(genre);
+                        const isExcluded = excludedGenres.includes(genre);
+                        
+                        return (
+                            <button
+                                key={genre}
+                                onClick={() => toggleGenre(genre)}
+                                className={`w-full text-left px-3 py-1.5 text-[10px] font-bold rounded border transition-all flex justify-between items-center ${
+                                    isSelected
+                                        ? 'bg-black text-white border-black shadow-sm'
+                                        : isExcluded 
+                                            ? 'bg-red-50 text-red-600 border-red-200 decoration-slice line-through'
+                                            : 'bg-white text-slate-500 border-transparent hover:bg-slate-50 hover:text-black'
+                                }`}
+                            >
+                                <span>{genre}</span>
+                                {isSelected && <Check className="w-3 h-3" />}
+                                {isExcluded && <Ban className="w-3 h-3" />}
+                            </button>
+                        );
+                    }) : (
+                        <div className="w-full text-center py-4 text-xs text-slate-400 italic">Empty...</div>
+                    )}
+                </div>
+                
+                {/* 底部状态 */}
+                <div className="pt-2 border-t border-slate-100 text-[10px] font-mono text-slate-400 text-center">
+                    {filteredGames.length} RESULTS
+                </div>
+            </div>
+
+            {/* 6. 结果详情 (保持不变) */}
+            {status === 'result' && resultGame && (
+                <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-white/90 backdrop-blur-xl p-6 animate-fade-in">
+                    <div className="w-full max-w-3xl bg-white shadow-2xl border border-slate-100 rounded-3xl overflow-hidden transform transition-all hover:scale-[1.01] duration-500">
+                        <button
+                            onClick={reset}
+                            className="absolute top-4 right-4 p-2 bg-slate-100 hover:bg-slate-200 rounded-full text-black transition-colors z-20"
+                        >
+                            <X className="w-6 h-6" />
+                        </button>
+
+                        <div className="flex flex-col md:flex-row">
+                            <div className="w-full md:w-1/2 aspect-video md:aspect-auto relative group overflow-hidden">
+                                <img
+                                    src={getSteamCover(resultGame.steamAppId, resultGame.name_en)}
+                                    alt={resultGame.name_en}
+                                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                                />
+                                <div className="absolute inset-0 bg-black/10"></div>
+                                <div className="absolute top-4 left-4 bg-black text-white px-3 py-1 text-xs font-bold tracking-wider uppercase">
+                                    Winner Selected
+                                </div>
+                            </div>
+
+                            <div className="w-full md:w-1/2 p-8 md:p-12 flex flex-col justify-center text-center md:text-left">
+                                <h2 className="text-3xl md:text-4xl font-black text-black leading-none mb-2">
+                                    {resultGame.name_zh.replace(/[《》]/g, '')}
+                                </h2>
+                                <p className="text-slate-400 font-mono text-sm uppercase tracking-wider mb-6">
+                                    {resultGame.name_en}
+                                </p>
+
+                                <div className="w-12 h-1 bg-black md:mx-0 mx-auto mb-6"></div>
+
+                                <p className="text-slate-600 text-lg italic font-serif mb-8 leading-relaxed">
+                                    {resultGame.desc}
+                                </p>
+
+                                <div className="flex flex-col gap-3">
+                                    <a 
+                                        href={`https://store.steampowered.com/app/${resultGame.steamAppId}`}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="w-full py-4 bg-black text-white font-bold text-center rounded-xl hover:bg-slate-800 transition-all flex items-center justify-center gap-2 shadow-lg hover:shadow-xl"
+                                    >
+                                        View on Steam <ExternalLink className="w-4 h-4" />
+                            </a>
+                                    <button 
+                                        onClick={startRoulette}
+                                        className="w-full py-4 bg-slate-100 text-slate-600 font-bold text-center rounded-xl hover:bg-slate-200 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        Try Again <RefreshCw className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <style>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background-color: #e2e8f0;
+          border-radius: 20px;
+        }
+        @keyframes shine {
+            0% { left: -100%; }
+            100% { left: 200%; }
+        }
+        .animate-shine {
+            animation: shine 2s infinite linear;
+        }
+        @keyframes fade-in {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+        .animate-fade-in {
+            animation: fade-in 0.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+        }
+      `}</style>
+        </div>
+    );
+};
+
+export default App;
